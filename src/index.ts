@@ -3,6 +3,7 @@ config()
 
 import XLSX from 'xlsx'
 import Airtable, { FieldSet, Records } from 'airtable'
+import { parse } from 'date-fns'
 
 import { F6SCompany } from './f6s'
 
@@ -13,7 +14,7 @@ const airtable = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(pro
 
 async function main() {
   try {
-    let records: Records<FieldSet> = []
+    let records: Records<FieldSet>
 
     for (const app of apps) {
       console.log(`Processing application for ${app['Startup/Person Name']}`)
@@ -22,8 +23,9 @@ async function main() {
         .select({ filterByFormula: `{F6S Company ID} = '${app['User ID']}'` })
         .firstPage()
 
+      let company_id: string
       if (records.length == 0) {
-        await airtable('Companies').create({
+        const company = await airtable('Companies').create({
           'F6S Company ID': parseInt(app['User ID']),
           Name: app['Startup/Person Name'],
           Description: app['Brief Description'],
@@ -44,6 +46,8 @@ async function main() {
           Valuation: parseInt(app.Valuation),
           'Fund Stage': app['Fund Stage']
         })
+
+        company_id = company.id
       } else {
         await airtable('Companies').update(records[0].id, {
           Name: app['Startup/Person Name'],
@@ -65,6 +69,52 @@ async function main() {
           Valuation: parseInt(app.Valuation),
           'Fund Stage': app['Fund Stage']
         })
+
+        company_id = records[0].id
+      }
+
+      records = await airtable('Applications')
+        .select({ filterByFormula: `{F6S Application ID} = '${app['Application ID']}'` })
+        .firstPage()
+
+      if (records.length == 0) {
+        await airtable('Applications').create(
+          {
+            'F6S Application ID': parseInt(app['Application ID']),
+            'Primary Contact Name': app['Primary Contact Name'],
+            'Primary Contact Title': app['Primary Contact Title'],
+            'Primary Contact Email': app['Primary Contact Email Address'],
+            Status: app.Status,
+            'Complete %': parseInt(app['Complete %']) / 100,
+            Program: sheet.SheetNames[1],
+            'Date Created': parse(
+              `${app['Date Created']} ${app['Time Created']}`,
+              'dd/MM/yyyy HH:mm:ss',
+              new Date()
+            ).toISOString(),
+            Company: [company_id]
+          },
+          { typecast: true }
+        )
+      } else {
+        await airtable('Applications').update(
+          records[0].id,
+          {
+            'Primary Contact Name': app['Primary Contact Name'],
+            'Primary Contact Title': app['Primary Contact Title'],
+            'Primary Contact Email': app['Primary Contact Email Address'],
+            Status: app.Status,
+            'Complete %': parseInt(app['Complete %']) / 100,
+            Program: sheet.SheetNames[1],
+            'Date Created': parse(
+              `${app['Date Created']} ${app['Time Created']}`,
+              'dd/MM/yyyy HH:mm:ss',
+              new Date()
+            ).toISOString(),
+            Company: [company_id]
+          },
+          { typecast: true }
+        )
       }
     }
   } catch (e) {
