@@ -130,3 +130,5 @@ export interface F6SCompany {
   'Person 5 Phone': string
   'Person 5 Experience': string
 }
+
+export type PersonNumber = 1 | 2 | 3 | 4 | 5

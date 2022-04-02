@@ -2,10 +2,10 @@ import { config } from 'dotenv-flow'
 config()
 
 import XLSX from 'xlsx'
-import Airtable, { FieldSet, Records } from 'airtable'
+import Airtable, { FieldSet } from 'airtable'
 import { parse } from 'date-fns'
 
-import { F6SCompany } from './f6s'
+import { F6SCompany, PersonNumber } from './f6s'
 
 const sheet = XLSX.readFile(process.argv.slice(-1)[0])
 const apps = XLSX.utils.sheet_to_json<F6SCompany>(sheet.Sheets[sheet.SheetNames[1]], { range: 1 })
@@ -72,6 +72,35 @@ async function main() {
           new Date()
         ).toISOString(),
         Company: [company_id]
+      })
+
+      await Array.from({ length: 5 }, async (_, n) => {
+        const num: PersonNumber = (n + 1) as PersonNumber
+
+        if (!app[`Person ${num} User ID`]) return
+        try {
+          await upsert('Founders', 'F6S User ID', parseInt(app[`Person ${num} User ID`]), {
+            Name: `${app[`Person ${num} Name`]} ${app[`Person ${num} Surname`]}`,
+            Email: app[`Person ${num} Email`],
+            Phone: app[`Person ${num} Phone`],
+            Location: `${app[`Person ${num} City`]}${
+              app[`Person ${num} Country`] && app[`Person ${num} Country`] != 'United States'
+                ? `, ${app[`Person ${num} Country`]}`
+                : ''
+            }`,
+            Role: app[`Person ${num} Role`],
+            Skills: app[`Person ${num} Skills or Markets`].split(', ').filter(Boolean),
+            Facebook: app[`Person ${num} Facebook`],
+            Linkedin: app[`Person ${num} Linkedin`],
+            Twitter: app[`Person ${num} Twitter`],
+            Website: app[`Person ${num} Website`],
+            Description: app[`Person ${num} Brief Description`],
+            Experience: app[`Person ${num} Experience`],
+            Companies: [company_id]
+          })
+        } catch (e) {
+          console.error(e)
+        }
       })
     }
   } catch (e) {
