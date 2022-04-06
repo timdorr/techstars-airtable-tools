@@ -1,3 +1,10 @@
+export interface F6SPipeline {
+  'Startup ID': string
+  'Item Name': string
+  Pipeline: string
+  Status: string
+}
+
 export interface F6SCompany {
   'Application ID': string
   'Startup/Person Name': string

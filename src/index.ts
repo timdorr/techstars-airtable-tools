@@ -5,10 +5,17 @@ import XLSX from 'xlsx'
 import Airtable, { FieldSet } from 'airtable'
 import { parse } from 'date-fns'
 
-import { F6SCompany, PersonNumber } from './f6s'
+import { F6SPipeline, F6SCompany, PersonNumber } from './f6s'
 
 const sheet = XLSX.readFile(process.argv.slice(-1)[0])
-const apps = XLSX.utils.sheet_to_json<F6SCompany>(sheet.Sheets[sheet.SheetNames[1]], { range: 1 })
+const apps = XLSX.utils.sheet_to_json<F6SPipeline>(sheet.Sheets['Pipeline'], { range: 1 })
+
+const pipelines: Record<string, F6SCompany[]> = {}
+for (const pipeline of sheet.SheetNames) {
+  if (pipeline == 'Pipeline') continue
+
+  pipelines[pipeline] = XLSX.utils.sheet_to_json<F6SCompany>(sheet.Sheets[pipeline], { range: 1 })
+}
 
 const airtable = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE as string)
 
@@ -39,7 +46,13 @@ async function upsert(table: string, keyField: string, keyValue: string | number
 }
 
 async function main() {
-  for (const app of apps) {
+  for (const application of apps) {
+    const app = pipelines[application['Pipeline']].find(company => company['User ID'] == application['Startup ID'])
+    if (!app) {
+      console.log(`!!${application['Item Name']} not found!!`)
+      continue
+    }
+
     console.log(`Processing application for ${app['Startup/Person Name']}`)
 
     const company_id = await upsert('Companies', 'F6S Company ID', parseInt(app['User ID']), {
@@ -69,7 +82,7 @@ async function main() {
       'Primary Contact Email': app['Primary Contact Email Address'],
       Status: app.Status,
       'Complete %': parseInt(app['Complete %']) / 100,
-      Program: sheet.SheetNames[1],
+      Program: application['Pipeline'],
       'Date Created': parse(
         `${app['Date Created']} ${app['Time Created']}`,
         'dd/MM/yyyy HH:mm:ss',
