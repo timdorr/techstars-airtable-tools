@@ -47,7 +47,12 @@ async function upsert(table: string, keyField: string, keyValue: string | number
 
 async function main() {
   for (const application of apps) {
-    const app = pipelines[application['Pipeline']].find(company => company['User ID'] == application['Startup ID'])
+    const pipeline =
+      application['Pipeline'].length > 31
+        ? `${application['Pipeline'].slice(0, 14)}...${application['Pipeline'].slice(-14)}`
+        : application['Pipeline']
+
+    const app = pipelines[pipeline].find(company => company['User ID'] == application['Startup ID'])
     if (!app) {
       console.log(`!!${application['Item Name']} not found!!`)
       continue
