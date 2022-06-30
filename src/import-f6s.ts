@@ -17,7 +17,9 @@ for (const pipeline of sheet.SheetNames) {
   pipelines[pipeline] = XLSX.utils.sheet_to_json<F6SCompany>(sheet.Sheets[pipeline], { range: 1 })
 }
 
-const airtable = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE as string)
+const airtable = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
+  process.env.AIRTABLE_SOURCING_BASE as string
+)
 
 async function upsert(table: string, keyField: string, keyValue: string | number, fields: FieldSet): Promise<string> {
   try {
